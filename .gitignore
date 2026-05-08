@@ -57,3 +57,4 @@ docs
 .mcp.json
 eval/
 tests/
+infra/cloudrun-service.yaml

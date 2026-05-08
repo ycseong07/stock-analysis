@@ -247,46 +247,9 @@
       display: block;
     }
 
-    .meta {
-      display: flex;
-      gap: 1em;
-      flex-wrap: wrap;
-      color: var(--fg-soft);
-      font-size: 0.82em;
-      margin-bottom: 1em;
-    }
-
-    .badge {
-      padding: 0.2em 0.7em;
-      border-radius: 999px;
-      border: 1px solid var(--bar-border);
-    }
-
-    .badge.faithful-true {
-      color: var(--ok);
-      border-color: #2a5a32;
-    }
-
-    .badge.faithful-false {
-      color: var(--error);
-      border-color: #6e2935;
-    }
-
     .answer {
       white-space: pre-wrap;
       word-break: break-word;
-    }
-
-    .answer .tag {
-      display: inline-block;
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--fg);
-      padding: 0 0.4em;
-      border-radius: 4px;
-      font-size: 0.78em;
-      font-family: ui-monospace, "SF Mono", monospace;
-      margin: 0 0.15em;
-      cursor: help;
     }
 
     .citations {
@@ -433,7 +396,6 @@
 
     <div class="error" id="error"></div>
     <div class="result" id="result">
-      <div class="meta" id="meta"></div>
       <div class="answer" id="answer"></div>
       <div class="citations" id="citations" style="display:none">
         <h3>출처</h3>
@@ -450,7 +412,7 @@
     const $ = (id) => document.getElementById(id);
     const form = $("form"), query = $("query"), file = $("file");
     const submitBtn = $("submit"), result = $("result"), errorBox = $("error");
-    const meta = $("meta"), answer = $("answer"), citations = $("citations"), citationList = $("citation-list");
+    const answer = $("answer"), citations = $("citations"), citationList = $("citation-list");
     const fileName = $("file-name"), fileChip = $("file-chip"), fileClear = $("file-clear");
     const dropOverlay = $("drop-overlay");
 
@@ -540,11 +502,24 @@
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
 
-    const renderAnswer = (text) => {
-      return escapeHtml(text).replace(/\[corp:([^|\]]+)\|year:(\d{4})\|report:([^|\]]+)\|section:([^|\]]*)\|chunk:([^\]]+)\]/g,
-        (_, corp, year, report, section, chunk) =>
-          `<span class="tag" title="${escapeHtml(section)} · ${escapeHtml(chunk)}">${escapeHtml(corp)} ${year} ${escapeHtml(report)}</span>`
-      );
+    const stripCitations = (text) =>
+      text
+        .replace(/\s*\[corp:[^\]]+\]/g, "")
+        .replace(/[ \t]+([.,)])/g, "$1")
+        .replace(/[ \t]{2,}/g, " ");
+
+    const renderAnswer = (text) => escapeHtml(stripCitations(text));
+
+    const dedupeCitations = (list) => {
+      const seen = new Set();
+      const out = [];
+      for (const c of list) {
+        const key = `${c.corp_name}|${c.fiscal_year}|${c.report_type}|${c.section || ""}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(c);
+      }
+      return out;
     };
 
     const renderCitation = (c) => `
@@ -578,14 +553,10 @@
           throw new Error(`HTTP ${resp.status}: ${t.slice(0, 300)}`);
         }
         const data = await resp.json();
-        meta.innerHTML = `
-          <span class="badge faithful-${data.faithful}">${data.faithful ? "출처 검증 통과" : "출처 검증 실패"}</span>
-          <span>hits ${data.hits}</span>
-          <span>retries ${data.retry_count}</span>
-          <span>${(data.latency_ms / 1000).toFixed(1)}s</span>`;
         answer.innerHTML = renderAnswer(data.answer);
-        if (data.citations.length) {
-          citationList.innerHTML = data.citations.map(renderCitation).join("");
+        const uniqueCitations = dedupeCitations(data.citations || []);
+        if (uniqueCitations.length) {
+          citationList.innerHTML = uniqueCitations.map(renderCitation).join("");
           citations.style.display = "block";
         } else {
           citations.style.display = "none";
