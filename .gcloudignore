@@ -1,0 +1,36 @@
+.venv/
+venv/
+.uv-cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+.git/
+.github/
+.gitignore
+
+# Local data 
+data/
+logs/
+notebooks/
+docs/
+eval/
+tests/
+plan.md
+README.md
+CLAUDE.md
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+gcp-key*

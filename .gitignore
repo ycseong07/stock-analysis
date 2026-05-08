@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+
+# uv
+.uv-cache/
+uv.lock
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Secrets & credentials — secret-guard hook also blocks these
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+service-account*.json
+credentials*.json
+
+# Project artifacts (large or local-only)
+chunks*.jsonl
+data/
+*.pdf
+*.xbrl
+notebooks/.ipynb_checkpoints/
+
+# Test / type / lint caches
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Logs
+*.log
+logs/
+
+.claude/
+CLAUDE.md
+plan.md
+README.md
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+tmp/
+docs
+.mcp.json
+eval/
+tests/

@@ -1,0 +1,44 @@
+# Bake-in only what runtime needs: pyproject.toml + uv.lock + src/.
+# Everything below this line is excluded from the build context.
+
+.venv/
+venv/
+.uv-cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+.git/
+.github/
+.gitignore
+
+# Local data — never bake into a container image.
+data/
+logs/
+notebooks/
+docs/
+eval/
+tests/
+plan.md
+README.md
+CLAUDE.md
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Secrets — secret-guard hook + this list are double safety.
+.env
+.env.*
+*.json
+!pyproject.toml
+*.pem
+*.key
+gcp-key*
+
+# Misc
+harness_basic/

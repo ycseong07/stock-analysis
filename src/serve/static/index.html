@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DART 공시 분석</title>
+<style>
+  :root {
+    --bg: #fafafa;
+    --fg: #1a1a1a;
+    --fg-soft: #555;
+    --border: #d4d4d4;
+    --accent: #1f6feb;
+    --accent-fg: #fff;
+    --card: #fff;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --fg: #e6edf3;
+      --fg-soft: #9da7b1;
+      --border: #30363d;
+      --accent: #4493f8;
+      --accent-fg: #0d1117;
+      --card: #161b22;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 1em;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .hero {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 2em 0;
+  }
+  h1 {
+    font-size: 1.6em;
+    margin: 0 0 0.3em;
+    text-align: center;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--fg-soft);
+    margin-bottom: 2em;
+    font-size: 0.95em;
+  }
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6em;
+  }
+  textarea {
+    width: 100%;
+    min-height: 110px;
+    padding: 0.9em 1em;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 1em;
+    font-family: inherit;
+    background: var(--card);
+    color: var(--fg);
+    resize: vertical;
+    box-shadow: var(--shadow);
+  }
+  textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: transparent;
+  }
+  .controls {
+    display: flex;
+    gap: 0.5em;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .file-attach {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.55em 0.9em;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+    color: var(--fg-soft);
+    font-size: 0.9em;
+    cursor: pointer;
+  }
+  .file-attach:hover { color: var(--fg); border-color: var(--accent); }
+  .file-attach input { display: none; }
+  .file-name {
+    font-size: 0.85em;
+    color: var(--fg-soft);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 16em;
+  }
+  .file-clear {
+    border: none;
+    background: none;
+    color: var(--fg-soft);
+    cursor: pointer;
+    font-size: 1em;
+    padding: 0 0.3em;
+  }
+  button.submit {
+    margin-left: auto;
+    padding: 0.6em 1.6em;
+    background: var(--accent);
+    color: var(--accent-fg);
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.95em;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  button.submit:disabled { opacity: 0.6; cursor: not-allowed; }
+  button.submit:hover:not(:disabled) { filter: brightness(1.1); }
+  .examples {
+    margin-top: 1.2em;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4em;
+    justify-content: center;
+  }
+  .examples button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--fg-soft);
+    padding: 0.35em 0.8em;
+    border-radius: 999px;
+    font-size: 0.82em;
+    cursor: pointer;
+  }
+  .examples button:hover { border-color: var(--accent); color: var(--fg); }
+
+  .result {
+    margin-top: 2em;
+    padding: 1.5em;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    display: none;
+  }
+  .result.visible { display: block; }
+  .meta {
+    display: flex;
+    gap: 1em;
+    flex-wrap: wrap;
+    color: var(--fg-soft);
+    font-size: 0.82em;
+    margin-bottom: 1em;
+  }
+  .badge {
+    padding: 0.15em 0.6em;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  .badge.faithful-true { color: #198038; border-color: #198038; }
+  .badge.faithful-false { color: #c21e56; border-color: #c21e56; }
+  .answer { white-space: pre-wrap; word-break: break-word; }
+  .answer .tag {
+    display: inline-block;
+    background: rgba(31, 111, 235, 0.08);
+    color: var(--accent);
+    padding: 0 0.35em;
+    border-radius: 4px;
+    font-size: 0.78em;
+    font-family: ui-monospace, "SF Mono", monospace;
+    margin: 0 0.15em;
+    cursor: help;
+  }
+  .citations {
+    margin-top: 1.2em;
+    padding-top: 1em;
+    border-top: 1px solid var(--border);
+  }
+  .citations h3 {
+    font-size: 0.95em;
+    margin: 0 0 0.6em;
+    color: var(--fg-soft);
+    font-weight: 600;
+  }
+  .citation-card {
+    padding: 0.6em 0.8em;
+    border-left: 3px solid var(--accent);
+    background: rgba(31, 111, 235, 0.04);
+    margin-bottom: 0.5em;
+    font-size: 0.85em;
+    border-radius: 0 6px 6px 0;
+  }
+  .citation-card .head {
+    display: flex;
+    gap: 0.5em;
+    flex-wrap: wrap;
+    color: var(--fg-soft);
+    font-size: 0.8em;
+    margin-bottom: 0.2em;
+  }
+  .citation-card .head strong { color: var(--fg); }
+  .citation-card .section {
+    color: var(--fg);
+    word-break: break-word;
+  }
+  .error {
+    color: #c21e56;
+    padding: 1em;
+    border: 1px solid #c21e56;
+    border-radius: var(--radius);
+    background: rgba(194, 30, 86, 0.05);
+    margin-top: 1em;
+    display: none;
+  }
+  .error.visible { display: block; }
+  .spinner {
+    display: inline-block;
+    width: 1em; height: 1em;
+    border: 2px solid var(--accent-fg);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 0.5em;
+    vertical-align: -0.15em;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  footer {
+    text-align: center;
+    color: var(--fg-soft);
+    font-size: 0.8em;
+    padding: 1.5em 0;
+  }
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <h1>DART 공시 분석</h1>
+    <p class="subtitle">한국 상장기업 공시(사업/반기보고서)에서 자연어로 답을 찾습니다.</p>
+
+    <form id="form">
+      <textarea id="query" placeholder="예: 삼성전자 2024년 사업보고서의 매출액은?" required></textarea>
+      <div class="controls">
+        <label class="file-attach" id="attach-label">
+          <span>📎 PDF·HTML 첨부</span>
+          <input type="file" id="file" accept=".pdf,.html,.htm,application/pdf,text/html">
+        </label>
+        <span class="file-name" id="file-name"></span>
+        <button type="button" class="file-clear" id="file-clear" style="display:none">×</button>
+        <button type="submit" class="submit" id="submit">검색</button>
+      </div>
+    </form>
+
+    <div class="examples" id="examples">
+      <button data-q="삼성전자 2024년 사업보고서의 매출액은?">삼성 2024 매출</button>
+      <button data-q="NH투자증권의 2023년 반기 자기자본 비율은?">NH 자기자본</button>
+      <button data-q="LG에너지솔루션의 주력 사업 분야를 알려줘">LG엔솔 사업</button>
+      <button data-q="현대자동차의 2024년 직원 수는?">현대차 직원</button>
+    </div>
+  </section>
+
+  <div class="error" id="error"></div>
+  <div class="result" id="result">
+    <div class="meta" id="meta"></div>
+    <div class="answer" id="answer"></div>
+    <div class="citations" id="citations" style="display:none">
+      <h3>출처</h3>
+      <div id="citation-list"></div>
+    </div>
+  </div>
+
+  <footer>
+    DART RAG · LangGraph + Gemini · 8개 회사 × 3개년 = 48 보고서, 43,638 청크
+  </footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const form = $("form"), query = $("query"), file = $("file");
+const submitBtn = $("submit"), result = $("result"), errorBox = $("error");
+const meta = $("meta"), answer = $("answer"), citations = $("citations"), citationList = $("citation-list");
+const fileName = $("file-name"), fileClear = $("file-clear");
+
+document.querySelectorAll("#examples button").forEach(b => {
+  b.addEventListener("click", () => { query.value = b.dataset.q; query.focus(); });
+});
+
+file.addEventListener("change", () => {
+  if (file.files[0]) {
+    fileName.textContent = file.files[0].name;
+    fileClear.style.display = "inline";
+  }
+});
+fileClear.addEventListener("click", () => {
+  file.value = ""; fileName.textContent = ""; fileClear.style.display = "none";
+});
+
+const escapeHtml = (s) => s.replace(/[&<>"']/g, c => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+}[c]));
+
+// Replace citation tags with subtle inline pills.
+const renderAnswer = (text) => {
+  const re = /\[corp:([^|\]]+)\|year:(\d{4})\|report:([^|\]]+)\|section:([^|\]]*)\|chunk:[^\]]+\]/g;
+  return escapeHtml(text).replace(/\[corp:([^|\]]+)\|year:(\d{4})\|report:([^|\]]+)\|section:([^|\]]*)\|chunk:([^\]]+)\]/g,
+    (_, corp, year, report, section, chunk) =>
+      `<span class="tag" title="${escapeHtml(section)} · ${escapeHtml(chunk)}">${escapeHtml(corp)} ${year} ${escapeHtml(report)}</span>`
+  );
+};
+
+const renderCitation = (c) => `
+  <div class="citation-card">
+    <div class="head">
+      <strong>${escapeHtml(c.corp_name)}</strong>
+      <span>${c.fiscal_year}</span>
+      <span>${escapeHtml(c.report_type)}</span>
+    </div>
+    <div class="section">${escapeHtml(c.section || "(섹션 없음)")}</div>
+  </div>`;
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const q = query.value.trim();
+  if (!q) return;
+
+  result.classList.remove("visible");
+  errorBox.classList.remove("visible");
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<span class="spinner"></span>처리 중…';
+
+  const fd = new FormData();
+  fd.append("query", q);
+  if (file.files[0]) fd.append("file", file.files[0]);
+
+  try {
+    const t0 = performance.now();
+    const resp = await fetch("/ask", { method: "POST", body: fd });
+    const elapsed = Math.round(performance.now() - t0);
+    if (!resp.ok) {
+      const t = await resp.text();
+      throw new Error(`HTTP ${resp.status}: ${t.slice(0, 300)}`);
+    }
+    const data = await resp.json();
+    meta.innerHTML = `
+      <span class="badge faithful-${data.faithful}">${data.faithful ? "출처 검증 통과" : "출처 검증 실패"}</span>
+      <span>hits ${data.hits}</span>
+      <span>retries ${data.retry_count}</span>
+      <span>${(data.latency_ms / 1000).toFixed(1)}s</span>`;
+    answer.innerHTML = renderAnswer(data.answer);
+    if (data.citations.length) {
+      citationList.innerHTML = data.citations.map(renderCitation).join("");
+      citations.style.display = "block";
+    } else {
+      citations.style.display = "none";
+    }
+    result.classList.add("visible");
+  } catch (err) {
+    errorBox.textContent = `오류: ${err.message}`;
+    errorBox.classList.add("visible");
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "검색";
+  }
+});
+</script>
+</body>
+</html>
