@@ -70,3 +70,14 @@ def get_secrets() -> Secrets:
         gemini_api_key=SecretStr(_access_secret("gemini-api-key", infra.project)),
         dart_api_key=SecretStr(_access_secret("dart-api-key", infra.project)),
     )
+
+
+@lru_cache(maxsize=1)
+def get_fred_api_key() -> SecretStr:
+    """Lazy-loaded FRED API key.
+
+    Kept out of `Secrets` so that 1번 (DART RAG) code paths don't fail when the
+    `fred-api-key` secret is absent. Only the research pipeline (M1+) calls this.
+    """
+    infra = get_infra()
+    return SecretStr(_access_secret("fred-api-key", infra.project))

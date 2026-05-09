@@ -48,6 +48,7 @@ logs/
 .claude/
 CLAUDE.md
 plan.md
+progress.md
 README.md
 .mypy_cache/
 .pytest_cache/
