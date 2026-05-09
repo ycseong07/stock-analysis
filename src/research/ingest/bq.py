@@ -143,6 +143,45 @@ def delete_by_series_and_date_range(
     ).result()
 
 
+def delete_financials_quarter(
+    client: bigquery.Client,
+    *,
+    stock_code: str,
+    fiscal_year: int,
+    fiscal_quarter: int,
+) -> None:
+    """``DELETE WHERE stock=... AND fiscal_year=... AND fiscal_quarter=...``."""
+    tid = table_id("financials")
+    client.query(
+        f"DELETE FROM `{tid}` "
+        f"WHERE stock_code=@sc AND fiscal_year=@y AND fiscal_quarter=@q",
+        job_config=bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("sc", "STRING", stock_code),
+                bigquery.ScalarQueryParameter("y", "INT64", fiscal_year),
+                bigquery.ScalarQueryParameter("q", "INT64", fiscal_quarter),
+            ],
+        ),
+    ).result()
+
+
+def delete_card(
+    client: bigquery.Client, *, stock_code: str, as_of: date
+) -> None:
+    """``DELETE WHERE stock_code=... AND as_of=...`` — used before re-saving a
+    card to keep (stock, as_of) unique."""
+    tid = table_id("cards")
+    client.query(
+        f"DELETE FROM `{tid}` WHERE stock_code=@sc AND as_of=@as_of",
+        job_config=bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("sc", "STRING", stock_code),
+                bigquery.ScalarQueryParameter("as_of", "DATE", as_of),
+            ],
+        ),
+    ).result()
+
+
 def row_counts(client: bigquery.Client, table_names: Sequence[str] | None = None) -> dict[str, int]:
     """Diagnostic — ``COUNT(*)`` for each research table. Used by M1 verification."""
     names = list(table_names) if table_names is not None else list(TABLES.keys())

@@ -27,6 +27,8 @@ from fastapi.responses import HTMLResponse
 
 from src.agent.citation import parse_citations
 from src.agent.graph import build_default_graph
+from src.research.agent.graph import build_default_graph as build_research_graph
+from src.serve.research_routes import create_research_router
 from src.serve.types import AskResponse, CitationOut, HealthResponse
 from src.serve.upload import (
     MAX_UPLOAD_CHARS,
@@ -56,10 +58,13 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log.info("serve_startup")
         app.state.graph = factory()
+        # M6: research-card graph (separate LangGraph instance, same container)
+        app.state.research_graph = build_research_graph()
         yield
         log.info("serve_shutdown")
 
     app = FastAPI(title="DART RAG", lifespan=lifespan)
+    app.include_router(create_research_router())
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> HTMLResponse:

@@ -14,7 +14,7 @@ Shared contract on every table:
   - ``ingested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP()`` — load time.
 
 GC policy (decided 2026-05-09): rolling 90-day partition expiration via DDL
-``OPTIONS(partition_expiration_days = 90)`` for the high-volume daily tables.
+``OPTIONS(partition_expiration_days = 120)`` for the high-volume daily tables.
 ``financials`` and ``macro`` are unbounded — quarterly/monthly cadences are
 small and the time series is the point.
 """
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS `{table}` (
 )
 PARTITION BY trade_date
 CLUSTER BY stock_code
-OPTIONS(partition_expiration_days = 90)
+OPTIONS(partition_expiration_days = 120)
 """
 
 PRICES_SCHEMA = [
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS `{table}` (
 )
 PARTITION BY trade_date
 CLUSTER BY stock_code, metric
-OPTIONS(partition_expiration_days = 90)
+OPTIONS(partition_expiration_days = 120)
 """
 
 FLOWS_SCHEMA = [
@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS `{table}` (
 )
 PARTITION BY rcept_dt
 CLUSTER BY stock_code, report_type
-OPTIONS(partition_expiration_days = 90)
+OPTIONS(partition_expiration_days = 120)
 """
 
 DISCLOSURES_SCHEMA = [
@@ -186,7 +186,7 @@ CREATE TABLE IF NOT EXISTS `{table}` (
 )
 PARTITION BY DATE(published_at)
 CLUSTER BY stock_code
-OPTIONS(partition_expiration_days = 90)
+OPTIONS(partition_expiration_days = 120)
 """
 
 NEWS_SCHEMA = [
@@ -230,6 +230,39 @@ MACRO_SCHEMA = [
 ]
 
 
+# --- cards: research-card cache (one row per stock × as_of, M6) ---
+
+CARDS_DDL = """
+CREATE TABLE IF NOT EXISTS `{table}` (
+  stock_code                STRING NOT NULL,
+  as_of                     DATE NOT NULL,
+  card_markdown             STRING,
+  bullish_count             INT64,
+  bearish_count             INT64,
+  faithful                  BOOL,
+  language_violations_count INT64,
+  fact_pack_json            STRING,
+  signal_dumps_json         STRING,
+  generated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+)
+PARTITION BY as_of
+CLUSTER BY stock_code
+OPTIONS(partition_expiration_days = 120)
+"""
+
+CARDS_SCHEMA = [
+    bigquery.SchemaField("stock_code", "STRING", mode="REQUIRED"),
+    bigquery.SchemaField("as_of", "DATE", mode="REQUIRED"),
+    bigquery.SchemaField("card_markdown", "STRING"),
+    bigquery.SchemaField("bullish_count", "INT64"),
+    bigquery.SchemaField("bearish_count", "INT64"),
+    bigquery.SchemaField("faithful", "BOOL"),
+    bigquery.SchemaField("language_violations_count", "INT64"),
+    bigquery.SchemaField("fact_pack_json", "STRING"),
+    bigquery.SchemaField("signal_dumps_json", "STRING"),
+]
+
+
 TABLES: dict[str, TableSpec] = {
     "prices": TableSpec(name="prices", ddl=PRICES_DDL, schema=PRICES_SCHEMA),
     "flows": TableSpec(name="flows", ddl=FLOWS_DDL, schema=FLOWS_SCHEMA),
@@ -239,4 +272,5 @@ TABLES: dict[str, TableSpec] = {
     "financials": TableSpec(name="financials", ddl=FINANCIALS_DDL, schema=FINANCIALS_SCHEMA),
     "news": TableSpec(name="news", ddl=NEWS_DDL, schema=NEWS_SCHEMA),
     "macro": TableSpec(name="macro", ddl=MACRO_DDL, schema=MACRO_SCHEMA),
+    "cards": TableSpec(name="cards", ddl=CARDS_DDL, schema=CARDS_SCHEMA),
 }

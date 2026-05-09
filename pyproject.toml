@@ -23,6 +23,8 @@ dependencies = [
     "feedparser>=6.0.11",
     "pandas>=2.2",
     "opendartreader>=0.2.3",
+    "db-dtypes>=1.3",
+    "scikit-learn>=1.5",
 ]
 
 [dependency-groups]
@@ -33,6 +35,7 @@ dev = [
     "black>=24.0",
     "mypy>=1.10",
     "httpx>=0.28.1",
+    "types-requests>=2.32",
 ]
 
 [tool.ruff]

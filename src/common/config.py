@@ -9,6 +9,7 @@ Hard rules (see CLAUDE.md):
 
 from __future__ import annotations
 
+import json
 import logging
 from functools import lru_cache
 
@@ -81,3 +82,29 @@ def get_fred_api_key() -> SecretStr:
     """
     infra = get_infra()
     return SecretStr(_access_secret("fred-api-key", infra.project))
+
+
+class KrxCredentials(BaseModel):
+    """KRX 정보데이터시스템 회원 로그인 (PyKRX uses KRX_ID / KRX_PW env vars)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    krx_id: SecretStr
+    krx_pw: SecretStr
+
+
+@lru_cache(maxsize=1)
+def get_krx_credentials() -> KrxCredentials:
+    """Lazy-loaded KRX login. Required by PyKRX functions that hit member-only
+    endpoints (trading value, short balance). Public OHLCV does not need this.
+
+    Stored as a single Secret Manager entry ``krx-credentials`` whose payload
+    is JSON ``{"id": "...", "pw": "..."}`` — keeps id+pw together (always
+    rotated as a pair) and saves a slot under the 6-secret free-tier cap.
+    """
+    infra = get_infra()
+    payload = json.loads(_access_secret("krx-credentials", infra.project))
+    return KrxCredentials(
+        krx_id=SecretStr(payload["id"]),
+        krx_pw=SecretStr(payload["pw"]),
+    )
