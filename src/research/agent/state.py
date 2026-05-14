@@ -1,8 +1,7 @@
 """LangGraph state for the research-card agent.
 
-Mirrors 1번 ``src/agent/state.py`` pattern: a TypedDict (so LangGraph's
-StateGraph reducer treats updates as shallow merges) with Pydantic-validated
-sub-objects when structure matters.
+TypedDict (so LangGraph's StateGraph reducer treats updates as shallow
+merges) with Pydantic-validated sub-objects when structure matters.
 
 Lifecycle:
   inputs (stock_code, as_of)

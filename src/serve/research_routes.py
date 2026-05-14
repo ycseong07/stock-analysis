@@ -1,9 +1,9 @@
-"""FastAPI router for the M6 research-card endpoints.
+"""FastAPI router for the research-card endpoints.
 
 Mounted onto the main ``src/serve/app.py`` app — same Cloud Run service,
-same SA. Endpoints (per plan.md M6):
+same SA. Endpoints:
 
-  GET  /research                       — static HTML page
+  GET  /                               — static HTML page (research workspace)
   GET  /stocks                         — 8 covered tickers
   POST /research/{stock_code}          — generate or fetch cached card
   GET  /research/{stock_code}/history  — past cards from `dart_rag.cards`
@@ -34,7 +34,7 @@ from src.research.ingest.schemas import TABLES
 log = logging.getLogger(__name__)
 
 _STATIC_DIR = Path(__file__).parent / "static"
-_RESEARCH_HTML_PATH = _STATIC_DIR / "research.html"
+_INDEX_HTML_PATH = _STATIC_DIR / "index.html"
 
 
 # --- response models -------------------------------------------------------
@@ -176,11 +176,11 @@ def create_research_router(
     bq_client = bq_client or get_bq_client()
     router = APIRouter()
 
-    @router.get("/research", response_class=HTMLResponse)
-    def research_page() -> HTMLResponse:
-        if not _RESEARCH_HTML_PATH.exists():
-            raise HTTPException(status_code=500, detail="research.html missing")
-        return HTMLResponse(_RESEARCH_HTML_PATH.read_text(encoding="utf-8"))
+    @router.get("/", response_class=HTMLResponse)
+    def index_page() -> HTMLResponse:
+        if not _INDEX_HTML_PATH.exists():
+            raise HTTPException(status_code=500, detail="index.html missing")
+        return HTMLResponse(_INDEX_HTML_PATH.read_text(encoding="utf-8"))
 
     @router.get("/stocks", response_model=list[StockOut])
     def list_stocks() -> list[StockOut]:

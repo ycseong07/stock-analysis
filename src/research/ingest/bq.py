@@ -1,6 +1,6 @@
 """BigQuery helpers for the research card pipeline.
 
-Mirrors the patterns in ``src/index/load.py`` (1번):
+Conventions:
   - ``CREATE TABLE IF NOT EXISTS`` via DDL.
   - ``load_table_from_json`` via load job (free; streaming insert is metered).
   - Idempotent DELETE-then-APPEND, scoped by the loader's natural batch key

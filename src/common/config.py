@@ -77,8 +77,8 @@ def get_secrets() -> Secrets:
 def get_fred_api_key() -> SecretStr:
     """Lazy-loaded FRED API key.
 
-    Kept out of `Secrets` so that 1번 (DART RAG) code paths don't fail when the
-    `fred-api-key` secret is absent. Only the research pipeline (M1+) calls this.
+    Kept out of `Secrets` so unrelated code paths don't fail when the
+    `fred-api-key` secret is absent. Only the macro signal loader calls this.
     """
     infra = get_infra()
     return SecretStr(_access_secret("fred-api-key", infra.project))

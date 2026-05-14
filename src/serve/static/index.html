@@ -4,7 +4,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DART 공시 분석</title>
+  <title>AI 투자 리서치 에이전트</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
       --bg: #0d0d0d;
@@ -19,557 +20,300 @@
       --send-bg-disabled: #676767;
       --error: #f4546a;
       --ok: #6cd17e;
+      --warn: #f0b86b;
+      --link: #6ba6ff;
     }
 
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
       background: var(--bg);
       color: var(--fg);
-      line-height: 1.5;
+      line-height: 1.55;
       min-height: 100vh;
     }
 
-    main {
-      max-width: 760px;
-      margin: 0 auto;
-      padding: 1em;
-      min-height: 100vh;
+    nav.topbar {
       display: flex;
-      flex-direction: column;
-    }
-
-    .hero {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 2em 0;
-    }
-
-    h1 {
-      font-size: 2em;
-      margin: 0 0 0.4em;
-      text-align: center;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-    }
-
-    .subtitle {
-      text-align: center;
-      color: var(--fg-soft);
-      margin-bottom: 2em;
-      font-size: 1em;
-    }
-
-    .composer {
+      gap: 1.5em;
+      padding: 0.6em 1.2em;
+      border-bottom: 1px solid var(--bar-border);
       background: var(--bar-bg);
-      border: 1px solid transparent;
-      border-radius: 26px;
-      padding: 0.45em 0.45em 0.45em 0.55em;
-      display: flex;
-      align-items: flex-end;
-      gap: 0.4em;
-      transition: background 0.15s, border-color 0.15s;
-    }
-
-    .composer:focus-within {
-      background: var(--bar-bg-hover);
-    }
-
-    .attach-btn {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      border: none;
-      background: transparent;
-      color: var(--fg);
-      cursor: pointer;
-      display: flex;
       align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      padding: 0;
+    }
+    nav.topbar a {
+      color: var(--fg-soft);
+      text-decoration: none;
+      font-size: 0.95em;
+    }
+    nav.topbar a.active { color: var(--fg); font-weight: 600; }
+    nav.topbar .title { color: var(--fg); font-weight: 600; margin-right: auto; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr 320px;
+      gap: 1.2em;
+      padding: 1.2em;
+      max-width: 1400px;
+      margin: 0 auto;
     }
 
-    .attach-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
+    aside.sidebar, aside.rightpanel {
+      background: var(--bar-bg);
+      border: 1px solid var(--bar-border);
+      border-radius: 8px;
+      padding: 1em;
+      font-size: 0.92em;
     }
 
-    .attach-btn input {
-      display: none;
+    .sidebar h2, .rightpanel h2 {
+      font-size: 0.95em;
+      color: var(--fg-soft);
+      margin: 0 0 0.6em 0;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
-
-    .attach-btn svg {
-      width: 18px;
-      height: 18px;
-    }
-
-    .file-chip {
-      display: none;
-      align-items: center;
-      gap: 0.35em;
-      background: var(--pill);
-      color: var(--fg);
-      padding: 0.35em 0.5em 0.35em 0.75em;
-      border-radius: 999px;
+    .sidebar label {
+      display: block;
+      margin: 0.6em 0 0.25em;
+      color: var(--fg-soft);
       font-size: 0.85em;
-      max-width: 14em;
-      flex-shrink: 0;
-      align-self: center;
     }
-
-    .file-chip.visible {
-      display: inline-flex;
-    }
-
-    .file-chip-name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .file-chip-clear {
-      background: none;
-      border: none;
-      color: var(--fg-soft);
-      cursor: pointer;
-      padding: 0;
-      font-size: 1.15em;
-      line-height: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-    }
-
-    .file-chip-clear:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--fg);
-    }
-
-    .input-wrap {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      align-items: center;
-    }
-
-    textarea {
+    .sidebar select, .sidebar input[type="date"] {
       width: 100%;
-      max-height: 200px;
-      padding: 0.45em 0.2em;
-      border: none;
-      background: transparent;
+      background: var(--bg);
       color: var(--fg);
-      font-size: 1em;
-      font-family: inherit;
-      line-height: 1.4;
-      resize: none;
-      outline: none;
-      overflow-y: auto;
+      border: 1px solid var(--bar-border);
+      border-radius: 6px;
+      padding: 0.5em 0.6em;
+      font-size: 0.95em;
     }
-
-    textarea::placeholder {
-      color: var(--fg-soft);
-    }
-
-    .send-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: none;
+    .sidebar button {
+      width: 100%;
+      margin-top: 1em;
       background: var(--send-bg);
       color: var(--send-fg);
+      border: none;
+      border-radius: 999px;
+      padding: 0.6em 1em;
+      font-weight: 600;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      padding: 0;
-      transition: opacity 0.15s, background 0.15s;
     }
-
-    .send-btn:disabled {
+    .sidebar button:disabled {
       background: var(--send-bg-disabled);
-      color: var(--bar-bg);
       cursor: not-allowed;
     }
-
-    .send-btn:hover:not(:disabled) {
-      opacity: 0.85;
-    }
-
-    .send-btn svg {
-      width: 18px;
-      height: 18px;
-    }
-
-    .examples {
-      margin-top: 1.2em;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4em;
-      justify-content: center;
-    }
-
-    .examples button {
+    .sidebar .secondary {
       background: transparent;
-      border: 1px solid var(--bar-border);
       color: var(--fg-soft);
-      padding: 0.4em 0.9em;
-      border-radius: 999px;
-      font-size: 0.85em;
-      cursor: pointer;
+      border: 1px solid var(--bar-border);
+      margin-top: 0.6em;
     }
 
-    .examples button:hover {
-      border-color: var(--fg);
-      color: var(--fg);
-    }
-
-    .result {
-      margin-top: 2em;
-      padding: 1.5em;
+    main.main {
       background: var(--bar-bg);
       border: 1px solid var(--bar-border);
-      border-radius: 16px;
-      display: none;
+      border-radius: 8px;
+      padding: 1.6em 1.8em;
+      min-height: 60vh;
     }
-
-    .result.visible {
-      display: block;
-    }
-
-    .answer {
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .citations {
-      margin-top: 1.2em;
-      padding-top: 1em;
-      border-top: 1px solid var(--bar-border);
-    }
-
-    .citations h3 {
-      font-size: 0.95em;
-      margin: 0 0 0.6em;
-      color: var(--fg-soft);
-      font-weight: 600;
-    }
-
-    .citation-card {
-      padding: 0.6em 0.8em;
-      border-left: 3px solid var(--fg-soft);
-      background: rgba(255, 255, 255, 0.03);
-      margin-bottom: 0.5em;
-      font-size: 0.85em;
-      border-radius: 0 6px 6px 0;
-    }
-
-    .citation-card .head {
+    .badges {
       display: flex;
-      gap: 0.5em;
+      gap: 0.4em;
       flex-wrap: wrap;
+      margin-bottom: 1.2em;
+    }
+    .badge {
+      background: var(--pill);
       color: var(--fg-soft);
-      font-size: 0.8em;
-      margin-bottom: 0.2em;
+      border-radius: 999px;
+      padding: 0.18em 0.7em;
+      font-size: 0.78em;
     }
+    .badge.ok { color: var(--ok); }
+    .badge.warn { color: var(--warn); }
+    .badge.err { color: var(--error); }
 
-    .citation-card .head strong {
+    article#card h1, article#card h2, article#card h3 {
       color: var(--fg);
     }
-
-    .citation-card .section {
-      color: var(--fg);
-      word-break: break-word;
+    article#card h3 { margin-top: 1.4em; }
+    article#card ul { padding-left: 1.2em; }
+    article#card li { margin: 0.3em 0; }
+    article#card code {
+      background: var(--pill);
+      padding: 0.05em 0.35em;
+      border-radius: 4px;
+      font-size: 0.9em;
     }
 
-    .error {
-      color: var(--error);
-      padding: 1em;
-      border: 1px solid var(--error);
-      border-radius: 12px;
-      background: rgba(244, 84, 106, 0.08);
-      margin-top: 1em;
-      display: none;
+    .empty {
+      color: var(--fg-soft);
+      text-align: center;
+      padding: 4em 1em;
     }
 
-    .error.visible {
-      display: block;
+    .rightpanel ul { list-style: none; padding: 0; margin: 0; }
+    .rightpanel li {
+      padding: 0.55em 0;
+      border-bottom: 1px solid var(--bar-border);
+      font-size: 0.85em;
+    }
+    .rightpanel li:last-child { border-bottom: none; }
+    .rightpanel .src-id {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      color: var(--link);
+      font-size: 0.75em;
+      margin-right: 0.4em;
     }
 
     .spinner {
       display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid currentColor;
-      border-top-color: transparent;
+      width: 1em;
+      height: 1em;
+      border: 2px solid var(--bar-border);
+      border-top-color: var(--fg);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 0.4em;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
+    @media (max-width: 1000px) {
+      .layout {
+        grid-template-columns: 1fr;
       }
-    }
-
-    footer {
-      text-align: center;
-      color: var(--fg-soft);
-      font-size: 0.8em;
-      padding: 1.5em 0;
-    }
-
-    .drop-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(13, 13, 13, 0.85);
-      border: 3px dashed var(--fg);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-      z-index: 100;
-      font-size: 1.2em;
-      color: var(--fg);
-    }
-
-    .drop-overlay.visible {
-      display: flex;
     }
   </style>
 </head>
 
 <body>
-  <div class="drop-overlay" id="drop-overlay">파일을 놓으면 첨부됩니다 (PDF · HTML)</div>
+  <nav class="topbar">
+    <span class="title">AI 투자 리서치 에이전트</span>
+  </nav>
 
-  <main>
-    <section class="hero">
-      <h1>DART 공시 분석</h1>
-      <p class="subtitle">한국 상장기업 공시를 쉽게 이해해보세요.</p>
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>분석 조건</h2>
+      <label for="stock">종목</label>
+      <select id="stock"></select>
+      <label for="date">기준 일자 (as_of)</label>
+      <input id="date" type="date">
+      <button id="generate">카드 생성</button>
+      <button id="refresh" class="secondary">새로 생성 (캐시 무시)</button>
+      <p id="hint" style="color: var(--fg-soft); font-size: 0.8em; margin-top: 1em;">
+        새로 생성 시 약 90초 소요됩니다 (5 LLM 호출).
+      </p>
+    </aside>
 
-      <form id="form">
-        <div class="composer" id="composer">
-          <label class="attach-btn" id="attach-label" title="PDF·HTML 첨부">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <input type="file" id="file" accept=".pdf,.html,.htm,application/pdf,text/html">
-          </label>
+    <main class="main">
+      <div class="badges" id="meta-badges"></div>
+      <article id="card">
+        <div class="empty">좌측에서 종목과 일자를 골라 <strong>카드 생성</strong>을 눌러주세요.</div>
+      </article>
+    </main>
 
-          <span class="file-chip" id="file-chip">
-            <span class="file-chip-name" id="file-name"></span>
-            <button type="button" class="file-chip-clear" id="file-clear" aria-label="파일 제거">×</button>
-          </span>
-
-          <div class="input-wrap">
-            <textarea id="query" rows="1" placeholder="무엇이든 물어보세요" required></textarea>
-          </div>
-
-          <button type="submit" class="send-btn" id="submit" aria-label="전송">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-              stroke-linejoin="round" aria-hidden="true">
-              <line x1="12" y1="19" x2="12" y2="5"></line>
-              <polyline points="5 12 12 5 19 12"></polyline>
-            </svg>
-          </button>
-        </div>
-      </form>
-
-      <div class="examples" id="examples">
-        <button data-q="삼성전자 2024년 사업보고서의 매출액은?">삼성 2024 매출</button>
-        <button data-q="NH투자증권의 2023년 반기 자기자본 비율은?">NH 자기자본</button>
-        <button data-q="LG에너지솔루션의 주력 사업 분야를 알려줘">LG엔솔 사업분야</button>
-      </div>
-    </section>
-
-    <div class="error" id="error"></div>
-    <div class="result" id="result">
-      <div class="answer" id="answer"></div>
-      <div class="citations" id="citations" style="display:none">
-        <h3>출처</h3>
-        <div id="citation-list"></div>
-      </div>
-    </div>
-
-    <footer>
-      이 사이트는 투자에 대한 결정을 내려주지 않습니다.
-    </footer>
-  </main>
+    <aside class="rightpanel">
+      <h2>출처 (fact pack)</h2>
+      <ul id="facts">
+        <li style="color: var(--fg-soft); border: none;">카드 생성 후 출처가 표시됩니다.</li>
+      </ul>
+    </aside>
+  </div>
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const form = $("form"), query = $("query"), file = $("file");
-    const submitBtn = $("submit"), result = $("result"), errorBox = $("error");
-    const answer = $("answer"), citations = $("citations"), citationList = $("citation-list");
-    const fileName = $("file-name"), fileChip = $("file-chip"), fileClear = $("file-clear");
-    const dropOverlay = $("drop-overlay");
+    const stockSel = $("stock");
+    const dateInp = $("date");
+    const genBtn = $("generate");
+    const refreshBtn = $("refresh");
 
-    const sendIcon = submitBtn.innerHTML;
+    // Default date = today (KST)
+    const todayStr = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+      .toISOString().slice(0, 10);
+    dateInp.value = todayStr;
+    dateInp.max = todayStr;
 
-    const autoGrow = () => {
-      query.style.height = "auto";
-      query.style.height = Math.min(query.scrollHeight, 200) + "px";
-    };
-    query.addEventListener("input", autoGrow);
+    async function loadStocks() {
+      const r = await fetch("/stocks");
+      const stocks = await r.json();
+      stockSel.innerHTML = stocks
+        .map(s => `<option value="${s.code}">${s.name} (${s.code})</option>`)
+        .join("");
+    }
 
-    query.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
-        e.preventDefault();
-        form.requestSubmit();
+    function setLoading(on) {
+      genBtn.disabled = on;
+      refreshBtn.disabled = on;
+      if (on) {
+        $("card").innerHTML = `<div class="empty"><span class="spinner"></span> 카드 생성 중…</div>`;
+        $("meta-badges").innerHTML = "";
+        $("facts").innerHTML = `<li style="color: var(--fg-soft); border: none;">대기 중…</li>`;
       }
-    });
+    }
 
-    document.querySelectorAll("#examples button").forEach(b => {
-      b.addEventListener("click", () => {
-        query.value = b.dataset.q;
-        autoGrow();
-        query.focus();
-      });
-    });
+    function renderBadges(card) {
+      const items = [
+        `<span class="badge">기준일 ${card.as_of}</span>`,
+        `<span class="badge">매수 ${card.bullish_count} / 매도 ${card.bearish_count}</span>`,
+        card.faithful
+          ? `<span class="badge ok">faithful ✓</span>`
+          : `<span class="badge err">faithful ✗</span>`,
+        card.language_violations_count > 0
+          ? `<span class="badge warn">언어 위반 ${card.language_violations_count}</span>`
+          : `<span class="badge ok">언어 검증 ✓</span>`,
+        card.cached
+          ? `<span class="badge">캐시 (${card.generated_at?.slice(0, 19) ?? "?"})</span>`
+          : `<span class="badge ok">신규 생성 ${(card.latency_ms / 1000).toFixed(1)}s</span>`,
+      ];
+      $("meta-badges").innerHTML = items.join(" ");
+    }
 
-    const isAcceptedFile = (f) => {
-      if (!f) return false;
-      if (f.type === "application/pdf" || f.type === "text/html") return true;
-      return /\.(pdf|html?|htm)$/i.test(f.name);
-    };
+    function renderCard(md) {
+      // marked.parse — basic markdown rendering
+      $("card").innerHTML = window.marked ? marked.parse(md) : `<pre>${md}</pre>`;
+    }
 
-    const setFile = (f) => {
-      if (!isAcceptedFile(f)) {
-        errorBox.textContent = "PDF 또는 HTML 파일만 첨부할 수 있습니다.";
-        errorBox.classList.add("visible");
+    function renderFactPack(facts) {
+      if (!facts.length) {
+        $("facts").innerHTML = `<li style="color: var(--fg-soft); border: none;">출처 없음</li>`;
         return;
       }
-      const dt = new DataTransfer();
-      dt.items.add(f);
-      file.files = dt.files;
-      fileName.textContent = f.name;
-      fileChip.classList.add("visible");
-      errorBox.classList.remove("visible");
-    };
+      $("facts").innerHTML = facts
+        .map(f => `<li><span class="src-id">[${f.id}]</span>${f.sentence}</li>`)
+        .join("");
+    }
 
-    file.addEventListener("change", () => {
-      if (file.files[0]) {
-        fileName.textContent = file.files[0].name;
-        fileChip.classList.add("visible");
-      }
-    });
+    async function generate(forceRefresh) {
+      const code = stockSel.value;
+      const asOf = dateInp.value;
+      const url = `/research/${code}?as_of=${asOf}` + (forceRefresh ? "&force_refresh=true" : "");
 
-    fileClear.addEventListener("click", () => {
-      file.value = "";
-      fileName.textContent = "";
-      fileChip.classList.remove("visible");
-    });
-
-    let dragDepth = 0;
-    const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
-
-    document.addEventListener("dragenter", (e) => {
-      if (!hasFiles(e)) return;
-      e.preventDefault();
-      dragDepth++;
-      dropOverlay.classList.add("visible");
-    });
-    document.addEventListener("dragover", (e) => {
-      if (hasFiles(e)) e.preventDefault();
-    });
-    document.addEventListener("dragleave", (e) => {
-      if (!hasFiles(e)) return;
-      dragDepth = Math.max(0, dragDepth - 1);
-      if (dragDepth === 0) dropOverlay.classList.remove("visible");
-    });
-    document.addEventListener("drop", (e) => {
-      if (!hasFiles(e)) return;
-      e.preventDefault();
-      dragDepth = 0;
-      dropOverlay.classList.remove("visible");
-      const f = e.dataTransfer.files[0];
-      if (f) setFile(f);
-    });
-
-    const escapeHtml = (s) => s.replace(/[&<>"']/g, c => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[c]));
-
-    const stripCitations = (text) =>
-      text
-        .replace(/\s*\[corp:[^\]]+\]/g, "")
-        .replace(/[ \t]+([.,)])/g, "$1")
-        .replace(/[ \t]{2,}/g, " ");
-
-    const renderAnswer = (text) => escapeHtml(stripCitations(text));
-
-    const dedupeCitations = (list) => {
-      const seen = new Set();
-      const out = [];
-      for (const c of list) {
-        const key = `${c.corp_name}|${c.fiscal_year}|${c.report_type}|${c.section || ""}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(c);
-      }
-      return out;
-    };
-
-    const renderCitation = (c) => `
-      <div class="citation-card">
-        <div class="head">
-          <strong>${escapeHtml(c.corp_name)}</strong>
-          <span>${c.fiscal_year}</span>
-          <span>${escapeHtml(c.report_type)}</span>
-        </div>
-        <div class="section">${escapeHtml(c.section || "(섹션 없음)")}</div>
-      </div>`;
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const q = query.value.trim();
-      if (!q) return;
-
-      result.classList.remove("visible");
-      errorBox.classList.remove("visible");
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner"></span>';
-
-      const fd = new FormData();
-      fd.append("query", q);
-      if (file.files[0]) fd.append("file", file.files[0]);
-
+      setLoading(true);
       try {
-        const resp = await fetch("/ask", { method: "POST", body: fd });
-        if (!resp.ok) {
-          const t = await resp.text();
-          throw new Error(`HTTP ${resp.status}: ${t.slice(0, 300)}`);
+        const r = await fetch(url, { method: "POST" });
+        if (!r.ok) {
+          const err = await r.text();
+          $("card").innerHTML = `<div class="empty" style="color: var(--error);">에러 ${r.status}: ${err}</div>`;
+          return;
         }
-        const data = await resp.json();
-        answer.innerHTML = renderAnswer(data.answer);
-        const uniqueCitations = dedupeCitations(data.citations || []);
-        if (uniqueCitations.length) {
-          citationList.innerHTML = uniqueCitations.map(renderCitation).join("");
-          citations.style.display = "block";
-        } else {
-          citations.style.display = "none";
-        }
-        result.classList.add("visible");
-      } catch (err) {
-        errorBox.textContent = `오류: ${err.message}`;
-        errorBox.classList.add("visible");
+        const card = await r.json();
+        renderBadges(card);
+        renderCard(card.card_markdown);
+        renderFactPack(card.fact_pack);
+      } catch (e) {
+        $("card").innerHTML = `<div class="empty" style="color: var(--error);">네트워크 오류: ${e.message}</div>`;
       } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = sendIcon;
+        setLoading(false);
       }
-    });
+    }
+
+    genBtn.addEventListener("click", () => generate(false));
+    refreshBtn.addEventListener("click", () => generate(true));
+
+    loadStocks();
   </script>
 </body>
 
