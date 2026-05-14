@@ -26,7 +26,6 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-from pykrx import stock
 
 from src.common.config import get_krx_credentials
 from src.research.ingest.schemas import (
@@ -48,19 +47,26 @@ _FLOWS_COLUMN_TO_METRIC: dict[str, str] = {
     "개인": "individual_net",
 }
 
-_krx_login_done = False
+# `pykrx` runs `build_krx_session()` at *module load*, and that function's
+# defaults capture `os.getenv("KRX_ID")` / `KRX_PW` at definition time. So the
+# env vars must be hydrated *before* the first `import pykrx`. We lazy-import
+# the `stock` module here so this file can be imported (e.g. for `KST`)
+# without forcing a Secret Manager lookup or a failed KRX login.
+_pykrx_stock: Any = None
 
 
-def ensure_krx_login() -> None:
-    """Hydrate KRX_ID / KRX_PW env vars from Secret Manager. Idempotent."""
-    global _krx_login_done
-    if _krx_login_done:
-        return
+def _krx_stock() -> Any:
+    global _pykrx_stock
+    if _pykrx_stock is not None:
+        return _pykrx_stock
     creds = get_krx_credentials()
     os.environ["KRX_ID"] = creds.krx_id.get_secret_value()
     os.environ["KRX_PW"] = creds.krx_pw.get_secret_value()
-    _krx_login_done = True
+    from pykrx import stock  # noqa: E402 — must happen after env hydration
+
+    _pykrx_stock = stock
     log.info("KRX login hydrated from Secret Manager")
+    return stock
 
 
 def _today_kst() -> date:
@@ -105,7 +111,7 @@ def load_prices(stock_code: str, date_range: tuple[date, date]) -> list[dict[str
     Public endpoint — no KRX login needed.
     """
     start, end = date_range
-    df = stock.get_market_ohlcv(_yyyymmdd(start), _yyyymmdd(end), stock_code)
+    df = _krx_stock().get_market_ohlcv(_yyyymmdd(start), _yyyymmdd(end), stock_code)
     df = _drop_intraday_today(df, today=_today_kst())
     if df.empty:
         return []
@@ -147,9 +153,10 @@ def load_flows(stock_code: str, date_range: tuple[date, date]) -> list[dict[str,
     {foreign_net, institution_net, individual_net}. Freshness = T-1.
     Requires KRX member login.
     """
-    ensure_krx_login()
     start, end = date_range
-    df = stock.get_market_trading_value_by_date(_yyyymmdd(start), _yyyymmdd(end), stock_code)
+    df = _krx_stock().get_market_trading_value_by_date(
+        _yyyymmdd(start), _yyyymmdd(end), stock_code
+    )
     if df.empty:
         return []
 
@@ -178,9 +185,8 @@ def load_shorts(stock_code: str, date_range: tuple[date, date]) -> list[dict[str
     Returns long-format rows for ``flows`` with ``metric`` = short_balance.
     Freshness = T-2. Requires KRX member login.
     """
-    ensure_krx_login()
     start, end = date_range
-    df = stock.get_shorting_balance_by_date(_yyyymmdd(start), _yyyymmdd(end), stock_code)
+    df = _krx_stock().get_shorting_balance_by_date(_yyyymmdd(start), _yyyymmdd(end), stock_code)
     if df.empty:
         return []
 
