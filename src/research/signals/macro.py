@@ -20,6 +20,7 @@ from pydantic import ConfigDict
 
 from src.research.ingest.bq import get_bq_client, table_id
 from src.research.signals._types import SignalOutput
+from src.research.signals._urls import fred_series_url
 
 log = logging.getLogger(__name__)
 
@@ -94,6 +95,7 @@ def compute(
 
     snapshot: dict[str, dict[str, float | str | None]] = {}
     sentences: list[str] = []
+    sentence_urls: list[list[str]] = []
 
     for sid, (kor, unit) in _SERIES_KOR.items():
         rows = df[df["series_id"] == sid]
@@ -124,12 +126,14 @@ def compute(
         if pd.notna(change_3m):
             parts.append(f"3개월 변동 {_format_change(float(change_3m), unit)}")
         sentences.append(", ".join(parts))
+        sentence_urls.append([fred_series_url(sid)])
 
     return MacroSignals(
         stock_code=None,  # macro is stock-agnostic
         as_of=as_of,
         data_freshness="mixed",  # per-series cadence is in each sentence
         sentences=sentences,
+        sentence_urls=sentence_urls,
         series_snapshot=snapshot,
     )
 

@@ -29,6 +29,9 @@ class FactItem(BaseModel):
     The ``id`` is a stable per-card identifier (e.g. ``tech-1``, ``flow-3``,
     ``news-2``) that downstream nodes embed in their output as the citation
     contract.
+
+    ``source_urls`` is display-only metadata for the frontend; LLM nodes
+    ignore it. Empty list = not clickable (e.g. ``flow-*`` derived stats).
     """
 
     model_config = ConfigDict(frozen=True)
@@ -36,6 +39,7 @@ class FactItem(BaseModel):
     id: str
     source: str  # technical / flow / disclosure_financial / macro / news
     sentence: str
+    source_urls: list[str] = []
 
 
 class BulletPoint(BaseModel):

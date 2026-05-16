@@ -51,6 +51,7 @@ class FactItemOut(BaseModel):
     id: str
     source: str
     sentence: str
+    source_urls: list[str] = []
 
 
 class CardResponse(BaseModel):
@@ -113,7 +114,13 @@ def _save_card(
     """Idempotent — DELETE existing (stock, as_of) then APPEND."""
     fact_pack = state.get("fact_pack") or []
     fact_pack_payload = [
-        {"id": f.id, "source": f.source, "sentence": f.sentence} for f in fact_pack
+        {
+            "id": f.id,
+            "source": f.source,
+            "sentence": f.sentence,
+            "source_urls": list(f.source_urls),
+        }
+        for f in fact_pack
     ]
     delete_card(client, stock_code=stock_code, as_of=as_of)
     load_rows(

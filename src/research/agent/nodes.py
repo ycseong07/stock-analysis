@@ -75,7 +75,7 @@ def _news_to_sentence(art: ClusteredArticle, analysis: NewsAnalysis) -> str:
         f"[{art.published_at:%Y-%m-%d} {src}] {art.title} — "
         f"event={analysis.event_type}, sentiment={analysis.sentiment} "
         f"(conf {analysis.sentiment_confidence:.2f}). "
-        f"근거 인용: \"{analysis.sentiment_evidence_quote}\""
+        f'근거 인용: "{analysis.sentiment_evidence_quote}"'
     )
 
 
@@ -102,18 +102,56 @@ def gather_signals(
         stock_code, cluster_result.representatives[:MAX_NEWS_REPRESENTATIVES]
     )
 
+    def _urls_for(sig: Any, idx: int) -> list[str]:
+        """sentence_urls[idx] when populated, else empty list."""
+        urls = getattr(sig, "sentence_urls", None) or []
+        return list(urls[idx]) if idx < len(urls) else []
+
     fact_pack: list[FactItem] = []
     for i, s in enumerate(tech.sentences, 1):
-        fact_pack.append(FactItem(id=f"tech-{i}", source="technical", sentence=s))
+        fact_pack.append(
+            FactItem(
+                id=f"tech-{i}",
+                source="technical",
+                sentence=s,
+                source_urls=_urls_for(tech, i - 1),
+            )
+        )
     for i, s in enumerate(flow_out.sentences, 1):
-        fact_pack.append(FactItem(id=f"flow-{i}", source="flow", sentence=s))
+        fact_pack.append(
+            FactItem(
+                id=f"flow-{i}",
+                source="flow",
+                sentence=s,
+                source_urls=_urls_for(flow_out, i - 1),
+            )
+        )
     for i, s in enumerate(disc.sentences, 1):
-        fact_pack.append(FactItem(id=f"disc-{i}", source="disclosure_financial", sentence=s))
+        fact_pack.append(
+            FactItem(
+                id=f"disc-{i}",
+                source="disclosure_financial",
+                sentence=s,
+                source_urls=_urls_for(disc, i - 1),
+            )
+        )
     for i, s in enumerate(mac.sentences, 1):
-        fact_pack.append(FactItem(id=f"macro-{i}", source="macro", sentence=s))
+        fact_pack.append(
+            FactItem(
+                id=f"macro-{i}",
+                source="macro",
+                sentence=s,
+                source_urls=_urls_for(mac, i - 1),
+            )
+        )
     for i, (art, ana) in enumerate(news_pairs, 1):
         fact_pack.append(
-            FactItem(id=f"news-{i}", source="news", sentence=_news_to_sentence(art, ana))
+            FactItem(
+                id=f"news-{i}",
+                source="news",
+                sentence=_news_to_sentence(art, ana),
+                source_urls=[art.link] if art.link else [],
+            )
         )
 
     log.info(
@@ -191,9 +229,7 @@ def _synthesize_side(
     min_n: int,
     model: str,
 ) -> SynthesisOutput:
-    prompt = _build_synth_prompt(
-        side=side, stock_code=stock_code, fact_pack=fact_pack, min_n=min_n
-    )
+    prompt = _build_synth_prompt(side=side, stock_code=stock_code, fact_pack=fact_pack, min_n=min_n)
     config = genai_types.GenerateContentConfig(
         system_instruction=_SYSTEM_CARD,
         response_mime_type="application/json",
@@ -203,9 +239,7 @@ def _synthesize_side(
     return SynthesisOutput.model_validate_json(resp.text or "{}")
 
 
-def _filter_invalid_citations(
-    points: list[BulletPoint], valid_ids: set[str]
-) -> list[BulletPoint]:
+def _filter_invalid_citations(points: list[BulletPoint], valid_ids: set[str]) -> list[BulletPoint]:
     """Drop any source_id the model hallucinated; if a point has zero valid
     ids left, drop the point. We don't *fix* citations — we just refuse to
     propagate ones the fact_pack can't ground."""
@@ -223,8 +257,12 @@ def bullish_synthesizer(
     fact_pack = state["fact_pack"]
     valid_ids = {item.id for item in fact_pack}
     out = _synthesize_side(
-        client=client, side="bullish", stock_code=state["stock_code"],
-        fact_pack=fact_pack, min_n=MIN_BULLISH_POINTS, model=model,
+        client=client,
+        side="bullish",
+        stock_code=state["stock_code"],
+        fact_pack=fact_pack,
+        min_n=MIN_BULLISH_POINTS,
+        model=model,
     )
     points = _filter_invalid_citations(out.points, valid_ids)
     log.info(
@@ -239,8 +277,12 @@ def bearish_synthesizer(
     fact_pack = state["fact_pack"]
     valid_ids = {item.id for item in fact_pack}
     out = _synthesize_side(
-        client=client, side="bearish", stock_code=state["stock_code"],
-        fact_pack=fact_pack, min_n=MIN_BEARISH_POINTS, model=model,
+        client=client,
+        side="bearish",
+        stock_code=state["stock_code"],
+        fact_pack=fact_pack,
+        min_n=MIN_BEARISH_POINTS,
+        model=model,
     )
     points = _filter_invalid_citations(out.points, valid_ids)
     log.info(
@@ -296,9 +338,7 @@ def retry_bearish(
 
 
 def _format_points(points: list[BulletPoint]) -> str:
-    return "\n".join(
-        f"- {p.text} [{', '.join(p.source_ids)}]" for p in points
-    )
+    return "\n".join(f"- {p.text} [{', '.join(p.source_ids)}]" for p in points)
 
 
 def _build_card_prompt(state: CardState) -> str:

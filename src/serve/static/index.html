@@ -167,6 +167,16 @@
       font-size: 0.75em;
       margin-right: 0.4em;
     }
+    .rightpanel a.src-id { text-decoration: none; }
+    .rightpanel a.src-id:hover { text-decoration: underline; }
+    .rightpanel .src-extra {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      color: var(--fg-soft);
+      font-size: 0.72em;
+      margin-left: 0.35em;
+    }
+    .rightpanel .src-extra a { color: var(--link); text-decoration: none; margin-right: 0.25em; }
+    .rightpanel .src-extra a:hover { text-decoration: underline; }
 
     .spinner {
       display: inline-block;
@@ -281,8 +291,27 @@
         $("facts").innerHTML = `<li style="color: var(--fg-soft); border: none;">출처 없음</li>`;
         return;
       }
+      const escAttr = s => String(s).replace(/"/g, "&quot;");
+      const escText = s => String(s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       $("facts").innerHTML = facts
-        .map(f => `<li><span class="src-id">[${f.id}]</span>${f.sentence}</li>`)
+        .map(f => {
+          const urls = Array.isArray(f.source_urls) ? f.source_urls : [];
+          let idHtml;
+          if (urls.length >= 1) {
+            idHtml = `<a class="src-id" href="${escAttr(urls[0])}" target="_blank" rel="noopener">[${escText(f.id)}]</a>`;
+          } else {
+            idHtml = `<span class="src-id">[${escText(f.id)}]</span>`;
+          }
+          let extra = "";
+          if (urls.length > 1) {
+            const links = urls.slice(1).map((u, i) =>
+              `<a href="${escAttr(u)}" target="_blank" rel="noopener">[${i + 2}]</a>`
+            ).join("");
+            extra = `<span class="src-extra">${links}</span>`;
+          }
+          return `<li>${idHtml}${escText(f.sentence)}${extra}</li>`;
+        })
         .join("");
     }
 

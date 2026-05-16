@@ -26,6 +26,7 @@ from pydantic import ConfigDict
 
 from src.research.ingest.bq import get_bq_client, table_id
 from src.research.signals._types import SignalOutput
+from src.research.signals._urls import naver_finance_url
 
 log = logging.getLogger(__name__)
 
@@ -45,9 +46,7 @@ class TechnicalSignals(SignalOutput):
     n_observations: int
 
 
-def _fetch_prices(
-    client: bigquery.Client, stock_code: str, as_of: date
-) -> pd.DataFrame:
+def _fetch_prices(client: bigquery.Client, stock_code: str, as_of: date) -> pd.DataFrame:
     tid = table_id("prices")
     query = (
         f"SELECT trade_date, close, volume, data_freshness "
@@ -68,9 +67,7 @@ def _fetch_prices(
     return df
 
 
-def _compute_from_df(
-    df: pd.DataFrame, stock_code: str, as_of: date
-) -> TechnicalSignals:
+def _compute_from_df(df: pd.DataFrame, stock_code: str, as_of: date) -> TechnicalSignals:
     n = len(df)
     if n < 20:
         return TechnicalSignals(
@@ -137,11 +134,14 @@ def _compute_from_df(
         sign = "+" if price_chg_5d >= 0 else ""
         sentences.append(f"직전 5거래일간 종가 변동폭은 {sign}{price_chg_5d * 100:.2f}% 로 기록됨")
 
+    # Every tech sentence points to the same source: Naver Finance chart.
+    chart_url = naver_finance_url(stock_code)
     return TechnicalSignals(
         stock_code=stock_code,
         as_of=as_of,
         data_freshness=str(df["data_freshness"].iloc[-1]),
         sentences=sentences,
+        sentence_urls=[[chart_url] for _ in sentences],
         ma_cross_recent_5d=ma_cross_recent_5d,
         volume_ratio_to_60d_mean=volume_ratio,
         volume_z_score_60d=volume_z,

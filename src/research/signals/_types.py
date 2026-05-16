@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from src.research.signals._lint import find_violations
 
@@ -21,6 +21,11 @@ class SignalOutput(BaseModel):
 
     Derived classes add their own raw fields. ``stock_code`` is None for
     stock-agnostic signals (e.g. ``macro_context``).
+
+    ``sentence_urls`` is an optional parallel list — when populated, each
+    entry is the list of source-document URLs for the sentence at the same
+    index (0+ URLs per sentence). Empty outer list = no URL metadata
+    available for this signal (frontend renders sentences as non-clickable).
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -29,6 +34,7 @@ class SignalOutput(BaseModel):
     as_of: date
     data_freshness: str
     sentences: list[str]
+    sentence_urls: list[list[str]] = []
 
     @field_validator("sentences")
     @classmethod
@@ -40,8 +46,16 @@ class SignalOutput(BaseModel):
                 all_violations.append((s, found))
         if all_violations:
             raise ValueError(
-                "future-prediction phrasing in signal sentences: " + "; ".join(
-                    f"{s!r} → {labels}" for s, labels in all_violations
-                )
+                "future-prediction phrasing in signal sentences: "
+                + "; ".join(f"{s!r} → {labels}" for s, labels in all_violations)
             )
         return v
+
+    @model_validator(mode="after")
+    def _urls_align_with_sentences(self) -> SignalOutput:
+        if self.sentence_urls and len(self.sentence_urls) != len(self.sentences):
+            raise ValueError(
+                f"sentence_urls length ({len(self.sentence_urls)}) must equal "
+                f"sentences length ({len(self.sentences)}) when non-empty"
+            )
+        return self

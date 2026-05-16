@@ -22,6 +22,7 @@ from pydantic import ConfigDict
 
 from src.research.ingest.bq import get_bq_client, table_id
 from src.research.signals._types import SignalOutput
+from src.research.signals._urls import dart_viewer_url
 
 log = logging.getLogger(__name__)
 
@@ -59,6 +60,9 @@ _METRIC_KOR: dict[str, str] = {
 # Metrics that are ratios (printed as %) vs absolute KRW
 _RATIO_METRICS = {"debt_ratio", "roe"}
 
+# Periodic-report categories — fin sentences point to the latest of these.
+_PERIODIC_REPORT_CATEGORIES = ("annual_report", "semi_annual_report", "quarterly_report")
+
 
 class DisclosureAndFinancialSignals(SignalOutput):
     """Recent disclosures by category + latest-quarter financials."""
@@ -79,8 +83,9 @@ def _fetch_disclosures(
     tid = table_id("disclosures_market")
     start = as_of - timedelta(days=window_days)
     q = (
-        f"SELECT rcept_dt, category, title FROM `{tid}` "
-        f"WHERE stock_code=@sc AND rcept_dt BETWEEN @start AND @as_of"
+        f"SELECT rcept_no, rcept_dt, category, title FROM `{tid}` "
+        f"WHERE stock_code=@sc AND rcept_dt BETWEEN @start AND @as_of "
+        f"ORDER BY rcept_dt DESC"
     )
     return client.query(
         q,
@@ -94,9 +99,38 @@ def _fetch_disclosures(
     ).to_dataframe()
 
 
-def _fetch_latest_financials(
+def _fetch_latest_periodic_report_rcept_no(
     client: bigquery.Client, stock_code: str, as_of: date
-) -> pd.DataFrame:
+) -> str | None:
+    """Most recent annual/semi/quarterly report rcept_no ≤ as_of, regardless
+    of the disclosure window. Used to attach a DART viewer URL to fin
+    sentences — the report whose XBRL produced the latest financials."""
+    tid = table_id("disclosures_market")
+    q = f"""
+    SELECT rcept_no FROM `{tid}`
+    WHERE stock_code=@sc AND rcept_dt <= @as_of
+      AND category IN UNNEST(@cats)
+    ORDER BY rcept_dt DESC
+    LIMIT 1
+    """
+    rows = list(
+        client.query(
+            q,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("sc", "STRING", stock_code),
+                    bigquery.ScalarQueryParameter("as_of", "DATE", as_of),
+                    bigquery.ArrayQueryParameter(
+                        "cats", "STRING", list(_PERIODIC_REPORT_CATEGORIES)
+                    ),
+                ],
+            ),
+        ).result()
+    )
+    return str(rows[0]["rcept_no"]) if rows else None
+
+
+def _fetch_latest_financials(client: bigquery.Client, stock_code: str, as_of: date) -> pd.DataFrame:
     """Latest fiscal quarter ≤ as_of for the stock. Returns rows for that
     single (year, quarter) tuple — all 8 metrics."""
     tid = table_id("financials")
@@ -150,13 +184,18 @@ def compute(
     fin = _fetch_latest_financials(client, stock_code, as_of)
 
     counts: dict[str, int] = {}
+    rcept_by_category: dict[str, list[str]] = {}
     uncat = 0
     if not disc.empty:
-        for cat in disc["category"]:
+        for _, row in disc.iterrows():
+            cat = row["category"]
+            rcept_no = str(row["rcept_no"])
             if cat is None or (isinstance(cat, float) and pd.isna(cat)):
                 uncat += 1
             else:
-                counts[str(cat)] = counts.get(str(cat), 0) + 1
+                key = str(cat)
+                counts[key] = counts.get(key, 0) + 1
+                rcept_by_category.setdefault(key, []).append(rcept_no)
 
     latest_q: str | None = None
     metrics: dict[str, float] = {}
@@ -174,14 +213,23 @@ def compute(
                 yoy[metric] = float(y)
 
     sentences: list[str] = []
+    sentence_urls: list[list[str]] = []
     # Disclosure summary — list each present category once with its count.
+    # URLs: all rcept_no in that category (most-recent first per fetch ORDER BY).
     if counts:
         for cat, n in sorted(counts.items(), key=lambda x: (-x[1], x[0])):
             label = _CATEGORY_KOR.get(cat, cat)
             sentences.append(f"직전 {window_days}일 동안 {label}이(가) {n}건 접수됨")
+            sentence_urls.append([dart_viewer_url(r) for r in rcept_by_category.get(cat, [])])
     # Latest financials — emphasise the noteworthy lines (revenue / op_income /
     # net_income / debt_ratio / roe). yoy when available.
+    # URLs: the latest periodic-report rcept_no (annual/semi/quarterly) — user
+    # lands on the DART viewer root and clicks "Ⅲ. 재무에 관한 사항".
+    fin_url: list[str] = []
     if latest_q and metrics:
+        rcept_no = _fetch_latest_periodic_report_rcept_no(client, stock_code, as_of)
+        if rcept_no:
+            fin_url = [dart_viewer_url(rcept_no)]
         emphasis = ["revenue", "operating_income", "net_income", "debt_ratio", "roe"]
         for metric in emphasis:
             if metric not in metrics:
@@ -196,12 +244,14 @@ def compute(
                 )
             else:
                 sentences.append(f"{latest_q} 기준 {kor}은 {val_str} 으로 보고됨")
+            sentence_urls.append(list(fin_url))
 
     return DisclosureAndFinancialSignals(
         stock_code=stock_code,
         as_of=as_of,
         data_freshness="T-0",
         sentences=sentences,
+        sentence_urls=sentence_urls,
         window_days=window_days,
         disclosure_counts=counts,
         uncategorised_count=uncat,
